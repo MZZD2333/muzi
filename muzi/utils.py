@@ -7,7 +7,6 @@ def escape(s: str) -> str:
         s = s.replace('&', '&amp;').replace('[', '&#91;').replace(']', '&#93;').replace(',', '&#44;')
     return s
 
-
 def unescape(s: str) -> str:
     if isinstance(s, str):
         return s.replace('&#44;', ',').replace('&#91;', '[').replace('&#93;', ']').replace('&amp;', '&')

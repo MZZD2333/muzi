@@ -96,16 +96,19 @@ class Trigger:
 
 
 def on_event(event: Type[Event], condition: Condition|None = None, priority: int = 1):
-    return Trigger._new(lambda e: True, event, condition, priority)
+    def detector():
+        current_result.set({})
+        return True
+    return Trigger._new(detector, event, condition, priority)
 
 
 def on_regex(pattern: str|re.Pattern, flags: re.RegexFlag = re.S, condition: Condition|None = None, priority: int = 1):
-    def match_message(e: MessageEvent):
+    def detector(e: MessageEvent):
         if match := re.search(pattern, e.raw_message, flags):
             current_result.set({'matched_groups': match.groups()})
             return True
         return False
-    return Trigger._new(match_message, MessageEvent, condition, priority)
+    return Trigger._new(detector, MessageEvent, condition, priority)
 
 __all__ = [
     'Trigger',

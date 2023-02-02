@@ -4,7 +4,7 @@ from ..exception import ExecuteError
 import asyncio
 
 
-Checker = Callable[..., bool]
+Checker = Callable
 
 class Condition:
 

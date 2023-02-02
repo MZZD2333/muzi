@@ -2,7 +2,7 @@ import inspect
 from dataclasses import dataclass, field
 from typing import Iterable, Callable
 
-from ..exception import ExecuteError, PreExecuteError
+from ..exception import ExecuteError, PreExecuteError, ExecuteDone
 
 
 @dataclass(eq=False, frozen=True)
@@ -23,11 +23,15 @@ class Executor:
 
         try:
             if inspect.iscoroutinefunction(self.func):
-                await self.func(*(self.get_params(self.func, args)))
+                result = await self.func(*(self.get_params(self.func, args)))
             else:
-                self.func(*(self.get_params(self.func, args)))
+                result = self.func(*(self.get_params(self.func, args)))
+            return result
+        except ExecuteDone:
+            pass
         except Exception as e:
             raise ExecuteError(str(e))
+        
 
     @classmethod
     def new(cls, func: Callable, pre_excute: Iterable[Callable]=[]):

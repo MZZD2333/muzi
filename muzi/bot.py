@@ -21,7 +21,7 @@ class BotSettings(BaseSettings):
     host: str = '127.0.0.1'
     port: int = 5700
     ws_path: str = ''
-    superuser: set[int] = {}
+    superuser: set[int] = set()
 
 class Bot:
     qid: int
@@ -55,8 +55,6 @@ class Bot:
                     logger.info(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] will be executed.')
                     try:
                         await trigger.execute_functions()
-                    except ExecuteDone:
-                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
                     except (PreExecuteError, ExecuteError) as e:
                         logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] <r>catch an exception.</r> {e.info}')
                     else:

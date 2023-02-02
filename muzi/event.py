@@ -32,6 +32,8 @@ class Event(BaseModel):
     self_id: int
     post_type: str
 
+    to_me: bool = False
+
     class Config:
         arbitrary_types_allowed = True
 
@@ -50,7 +52,6 @@ class MessageEvent(Event):
     sender: Sender
     user_id: int
 
-    to_me: bool = False
     
     @validator('message', pre=True)
     def msg(cls, str_):

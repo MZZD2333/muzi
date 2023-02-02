@@ -2,15 +2,17 @@ import importlib
 import inspect
 import os
 from dataclasses import dataclass
-
-from .trigger import Trigger, current_bot
 from typing import Callable
+
+from ..log import logger
+from .trigger import Trigger, current_bot
+
 
 @dataclass()
 class PluginMetadata:
     name: str
     version: str = '1.0'
-    usage_text: str = '暂无说明'
+    usage_text: str = 'None'
     usage_image_path: str|None = None
     status_tracing: Callable|None = None
     type: int = 0
@@ -18,8 +20,7 @@ class PluginMetadata:
 
 @dataclass(eq=False)
 class Plugin:
-
-    path: str
+    module_path: str
     triggers: list[Trigger]
 
     metadata: PluginMetadata
@@ -41,7 +42,10 @@ def load_plugin(path: str):
     if plugin := get_plugin(path):
         bot = current_bot.get()
         bot.plugins.append(plugin)
-
+        
+        logger.success(f'<g>Plugin</g> [<y>{path}</y>] loads successfully!')
+    else:
+        logger.warning(f'<g>Plugin</g> [<y>{path}</y>] loads unsuccessfully!')
 
 def load_plugin_dir(path: str):
     file_list = os.listdir(path)

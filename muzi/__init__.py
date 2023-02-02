@@ -1,3 +1,15 @@
+'''
+# muzi bot
+---
+### 可在插件内添加 `__metadata__` 字段用于插件管理
+* `name`: 插件名称 默认插件所在模块的路径
+* `usage_text`: 插件文本说明
+* `usage_image_path`: 插件图片说明路径
+* `status_tracing`: 插件状态监测函数
+* `type`: 插件类型 [0: 群聊|私聊][1: 群聊][2: 私聊][3: 非会话]
+---
+'''
+
 from .bot import Bot, BotSettings
 from .plugin import current_bot as _current_bot
 from .plugin import load_plugin, load_plugin_dir, on_event, on_regex

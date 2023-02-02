@@ -6,7 +6,7 @@ from fastapi import FastAPI, WebSocket
 from pydantic import BaseSettings
 
 from .event import Event, get_event, log_event
-from .exception import ExecuteDone, ExecuteError, PreExecuteError
+from .exception import ExecuteDone, ExecuteError, PreExecuteError, ConnectionFailed
 from .log import logger
 from .plugin import Plugin, Executor
 
@@ -21,9 +21,11 @@ class BotSettings(BaseSettings):
     host: str = '127.0.0.1'
     port: int = 5700
     ws_path: str = ''
-
+    superuser: set[int] = {}
 
 class Bot:
+    qid: int
+    superuser: set[int]
     plugins_path: list[str] = []
     plugins: list[Plugin] = []
 
@@ -32,6 +34,8 @@ class Bot:
         self.server = Server(self)
         self.server.set_websocket(setting.ws_path)
     
+        self.superuser = setting.superuser
+
     def __getattr__(self, name: str) -> ApiCall:
         return partial(self.call_api, name)
 
@@ -48,15 +52,15 @@ class Bot:
         for plugin in self.plugins:
             for trigger in plugin.triggers:
                 if await trigger._check(event):
-                    logger.info(f'<y>Trigger</y> [<m>{plugin.path}</m>.<g>{trigger.__instance_name__}</g>] will be executed.')
+                    logger.info(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] will be executed.')
                     try:
                         await trigger.execute_functions()
                     except ExecuteDone:
-                        logger.success(f'<y>Trigger</y> [<m>{plugin.path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
+                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
                     except (PreExecuteError, ExecuteError) as e:
-                        logger.error(f'<y>Trigger</y> [<m>{plugin.path}</m>.<g>{trigger.__instance_name__}</g>] <r>catch an exception.</r> {e.info}')
+                        logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] <r>catch an exception.</r> {e.info}')
                     else:
-                        logger.success(f'<y>Trigger</y> [<m>{plugin.path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
+                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
 
 
     def on_startup(self, func: Callable):
@@ -91,8 +95,15 @@ class Server:
     def set_websocket(self, path):
         async def handle_ws(websocket: WebSocket):
             await websocket.accept()
+
             self.websocket = websocket
+            if qid := websocket.headers.get('x-self-id', None):
+                self.bot.qid = int(qid)
+            else:
+                raise ConnectionFailed
+
             await self.on_bot_connect()
+
             try:
                 while True:
                     data = await websocket.receive_json()

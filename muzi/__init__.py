@@ -11,11 +11,11 @@
 '''
 
 from .bot import Bot, BotSettings
+from .message import CQcode, Message
+from .plugin import Condition, Trigger
 from .plugin import current_bot as _current_bot
 from .plugin import load_plugin, load_plugin_dir, on_event, on_regex
 from .typing import Trigger_Data
-from .message import Message, CQcode
-
 
 
 def init(**kwargs):

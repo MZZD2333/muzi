@@ -6,7 +6,7 @@ from fastapi import FastAPI, WebSocket
 from pydantic import BaseSettings
 
 from .event import Event, get_event, log_event
-from .exception import ExecuteDone, ExecuteError, PreExecuteError, ConnectionFailed
+from .exception import ExecuteError, PreExecuteError, ConnectionFailed
 from .log import logger
 from .plugin import Plugin, Executor
 
@@ -21,11 +21,11 @@ class BotSettings(BaseSettings):
     host: str = '127.0.0.1'
     port: int = 5700
     ws_path: str = ''
-    superuser: set[int] = set()
+    superusers: set[int] = set()
 
 class Bot:
     qid: int
-    superuser: set[int]
+    superusers: set[int]
     plugins_path: list[str] = []
     plugins: list[Plugin] = []
 
@@ -34,7 +34,7 @@ class Bot:
         self.server = Server(self)
         self.server.set_websocket(setting.ws_path)
     
-        self.superuser = setting.superuser
+        self.superusers = setting.superusers
 
     def __getattr__(self, name: str) -> ApiCall:
         return partial(self.call_api, name)

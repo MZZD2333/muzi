@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Coroutine, Any
 from .executor import Executor
 from ..exception import ExecuteError
 import asyncio

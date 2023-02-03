@@ -1,27 +1,30 @@
+import asyncio
+import time
 from functools import partial
-from typing import Any, Coroutine, Callable
+from typing import Any, Callable, Coroutine
 
 import uvicorn
 from fastapi import FastAPI, WebSocket
 from pydantic import BaseSettings
 
 from .event import Event, get_event, log_event
-from .exception import ExecuteError, PreExecuteError, ConnectionFailed
+from .exception import ConnectionFailed, ExecuteError, PreExecuteError
 from .log import logger
-from .plugin import Plugin, Executor
+from .plugin import Executor, Plugin
 
 try:
     import ujson as json
 except:
     import json
 
-ApiCall = partial[Coroutine[Any, Any, None]]
+ApiCall = partial[Coroutine[Any, Any, Any]]
 
 class BotSettings(BaseSettings):
     host: str = '127.0.0.1'
     port: int = 5700
     ws_path: str = ''
     superusers: set[int] = set()
+    api_timeout: float = 15.0
 
 class Bot:
     qid: int
@@ -40,7 +43,7 @@ class Bot:
         return partial(self.call_api, name)
 
     async def call_api(self, api: str, **data):
-        await self.server.call_api(api, **data)
+        return await self.server.call_api(api, **data)
 
     def run(self):
         uvicorn.run(self.server.asgi, host=self.setting.host, port=self.setting.port)
@@ -86,6 +89,8 @@ class Server:
     _on_bot_connect: list[Executor] = []
     _on_bot_disconnect: list[Executor] = []
 
+    _api_result: dict[str, asyncio.Future] = {}
+
     def __init__(self, bot) -> None:
         self.bot = bot
         self._server_app = FastAPI()
@@ -104,17 +109,43 @@ class Server:
 
             try:
                 while True:
-                    data = await websocket.receive_json()
-                    if event := get_event(data):
-                        await self.bot.handle_event(event)
+                    data: dict = await websocket.receive_json()
+                    if 'post_type' in data:
+                        if event := get_event(data):
+                            asyncio.create_task(self.bot.handle_event(event))
+                    else:
+                        self._store_api_result(data)
             except:
                 await self.on_bot_disconnect()
                 
         self._server_app.add_api_websocket_route(path, handle_ws)
 
     async def call_api(self, api, **data):
-        json_data = json.dumps({'action': api, 'params': data})
+        echo = str(time.time())
+        json_data = json.dumps({'action': api, 'params': data, 'echo': echo})
         await self._send(json_data)
+        try:
+            return await self._fetch_api_result(echo)
+        except asyncio.TimeoutError:
+            return None
+
+    def _store_api_result(self, data):
+        echo = data.get('echo')
+        feture = self._api_result[echo]
+        feture.set_result(data)
+
+    async def _fetch_api_result(self, echo):
+        future = asyncio.get_event_loop().create_future()
+        self._api_result[echo] = future
+        try:
+            data = await asyncio.wait_for(future, timeout=self.bot.setting.api_timeout)
+            if not isinstance(data, dict):
+                pass
+            elif data['status'] == 'failed':
+                pass
+            return data
+        finally:
+            del self._api_result[echo]
 
     async def _send(self, data):
         await self.websocket.send({'type': 'websocket.send', 'text': data})

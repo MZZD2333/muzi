@@ -1,6 +1,6 @@
 import asyncio
 from functools import partial
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Dict, List
 
 from fastapi import FastAPI, WebSocket
 from pydantic import BaseSettings
@@ -21,8 +21,8 @@ class BotSettings(BaseSettings):
 class Bot:
     qid: int
     superusers: set[int]
-    plugins_path: list[str]
-    plugins: list[Plugin]
+    plugins_path: List[str]
+    plugins: List[Plugin]
 
     def __init__(self, setting: BotSettings):...
     def __getattr__(self, name: str) -> ApiCall:...
@@ -35,7 +35,7 @@ class Bot:
     def on_connect(self, func: Callable) -> Callable:...
     def on_disconnect(self, func: Callable) -> Callable:...
 
-    async def send_private_msg(self, *, user_id: int, message: str | Message, auto_escape: bool = ...) -> dict[str, Any]:
+    async def send_private_msg(self, *, user_id: int, message: str | Message, auto_escape: bool = ...) -> Dict[str, Any]:
         '''
         ## 发送私聊消息
         ---
@@ -47,7 +47,7 @@ class Bot:
         ### 响应数据
         * `message_id`: 消息 ID
         '''
-    async def send_group_msg(self, *, group_id: int, message: str | Message, auto_escape: bool = ...) -> dict[str, Any]:
+    async def send_group_msg(self, *, group_id: int, message: str | Message, auto_escape: bool = ...) -> Dict[str, Any]:
         '''
         ## 发送群消息
         ---
@@ -59,7 +59,7 @@ class Bot:
         ### 响应数据
         * `message_id`: 消息 ID
         '''
-    async def send_group_forward_msg(self, *, group_id: int, message: Message) -> dict[str, Any]:
+    async def send_group_forward_msg(self, *, group_id: int, message: Message) -> Dict[str, Any]:
         '''
         ## 发送合并转发(群)
         ---
@@ -71,7 +71,7 @@ class Bot:
         * `message_id`: 消息 ID
         * `forward_id`: 转发消息 ID
         '''
-    async def send_msg(self, *, message_type: str = ..., user_id: int = ..., group_id: int = ..., message: str | Message, auto_escape: bool = ...) -> dict[str, Any]:
+    async def send_msg(self, *, message_type: str = ..., user_id: int = ..., group_id: int = ..., message: str | Message, auto_escape: bool = ...) -> Dict[str, Any]:
         '''
         ## 发送消息
         ---
@@ -95,7 +95,7 @@ class Bot:
         ### 响应数据
         * `message_id`: 消息 ID
         '''
-    async def get_msg(self, *, message_id: int,) -> dict[str, Any]:
+    async def get_msg(self, *, message_id: int,) -> Dict[str, Any]:
         '''
         ## 获取消息
         ---
@@ -123,14 +123,6 @@ class Bot:
         ### 响应数据
         * `messages`: 消息列表
         '''
-    async def send_like(self, *, user_id: int, times: int = ...,) -> None:
-        '''
-        ## 发送好友赞
-        ---
-        ### 参数
-        * `user_id`: 对方 QQ号
-        * `times`: 赞的次数,每个好友每天最多 10 次
-        '''
     async def set_group_kick(self, *, group_id: int, user_id: int, reject_add_request: bool = ...,) -> None:
         '''
         ## 群组踢人
@@ -155,7 +147,7 @@ class Bot:
         ### 响应数据
         * `None`
         '''
-    async def set_group_anonymous_ban(self, *, group_id: int, anonymous: dict[str, Any] = ..., anonymous_flag: str = ..., duration: int = ...) -> None:
+    async def set_group_anonymous_ban(self, *, group_id: int, anonymous: Dict[str, Any] = ..., anonymous_flag: str = ..., duration: int = ...) -> None:
         '''
         ## 群组匿名用户禁言
         ---
@@ -249,6 +241,16 @@ class Bot:
         ### 响应数据
         * `None`
         '''
+    async def send_group_sign(self, *, group_id: int) -> None:
+        '''
+        ## 群打卡
+        ---
+        ### 参数
+        * `group_id`: 群号
+        ---
+        ### 响应数据
+        * `None`
+        '''
     async def set_friend_add_request(self, *, flag: str, approve: bool = ..., remark: str = ...) -> None:
         '''
         ## 处理加好友请求
@@ -274,7 +276,7 @@ class Bot:
         ### 响应数据
         * `None`
         '''
-    async def get_login_info(self) -> dict[str, Any]:
+    async def get_login_info(self) -> Dict[str, Any]:
         '''
         ## 获取登录号信息
         ---
@@ -285,7 +287,7 @@ class Bot:
         * `user_id`: QQ号
         * `nickname`: QQ 昵称
         '''
-    async def set_login_info(self, *, nickname: str = ..., company: str = ..., email: str = ..., college: str = ..., personal_note: str = ...) -> dict[str, Any]:
+    async def set_login_info(self, *, nickname: str = ..., company: str = ..., email: str = ..., college: str = ..., personal_note: str = ...) -> Dict[str, Any]:
         '''
         ## 设置登录号资料
         ---
@@ -299,7 +301,7 @@ class Bot:
         ### 响应数据
         * `None`
         '''
-    async def get_stranger_info(self, *, user_id: int, no_cache: bool = ...) -> dict[str, Any]:
+    async def get_stranger_info(self, *, user_id: int, no_cache: bool = ...) -> Dict[str, Any]:
         '''
         ## 获取陌生人信息
         ---
@@ -316,7 +318,7 @@ class Bot:
         * `level`: 等级
         * `login_days`: 等级
         '''
-    async def get_friend_list(self) -> list[dict[str, Any]]:
+    async def get_friend_list(self) -> List[Dict[str, Any]]:
         '''
         ## 获取好友列表
         ---
@@ -329,7 +331,7 @@ class Bot:
         * `nickname`: 昵称
         * `remark`: 备注名
         '''
-    async def get_unidirectional_friend_list(self) -> list[dict[str, Any]]:
+    async def get_unidirectional_friend_list(self) -> List[Dict[str, Any]]:
         '''
         ## 获取单向好友列表
         ---
@@ -352,7 +354,7 @@ class Bot:
         ### 响应数据
         * `None`
         '''
-    async def get_group_info(self, *, group_id: int, no_cache: bool = ...) -> dict[str, Any]:
+    async def get_group_info(self, *, group_id: int, no_cache: bool = ...) -> Dict[str, Any]:
         '''
         ## 获取群信息
         ---
@@ -370,7 +372,7 @@ class Bot:
         * `member_count`: 成员数
         * `max_member_count`: 最大成员数(群容量)
         '''
-    async def get_group_list(self) -> list[dict[str, Any]]:
+    async def get_group_list(self) -> List[Dict[str, Any]]:
         '''
         ## 获取群列表
         ---
@@ -387,7 +389,7 @@ class Bot:
         * `member_count`: 成员数
         * `max_member_count`: 最大成员数(群容量)
         '''
-    async def get_group_member_info(self, *, group_id: int, user_id: int, no_cache: bool = ...) -> dict[str, Any]:
+    async def get_group_member_info(self, *, group_id: int, user_id: int, no_cache: bool = ...) -> Dict[str, Any]:
         '''
         ## 获取群成员信息
         ---
@@ -414,7 +416,7 @@ class Bot:
         * `card_changeable`: 是否允许修改群名片
         * `shut_up_timestamp`: 禁言到期时间
         '''
-    async def get_group_member_list(self, *, group_id: int) -> list[dict[str, Any]]:
+    async def get_group_member_list(self, *, group_id: int) -> List[Dict[str, Any]]:
         '''
         ## 获取群成员列表
         ---
@@ -440,7 +442,7 @@ class Bot:
         * `card_changeable`: 是否允许修改群名片
         * `shut_up_timestamp`: 禁言到期时间
         '''
-    async def get_group_honor_info(self, *, group_id: int, type: str = ...) -> dict[str, Any]:
+    async def get_group_honor_info(self, *, group_id: int, type: str = ...) -> Dict[str, Any]:
         '''
         ## 获取群荣誉信息
         ---
@@ -457,7 +459,7 @@ class Bot:
         * `strong_newbie_list`: 冒尖小春笋, 仅 `type` 为 `strong_newbie` 或 `all` 时有数据
         * `emotion_list`: 快乐之源, 仅 `type` 为 `emotion` 或 `all` 时有数据
         '''
-    async def can_send_image(self) -> dict[str, Any]:
+    async def can_send_image(self) -> Dict[str, Any]:
         '''
         ## 检查是否可以发送图片
         ---
@@ -467,7 +469,7 @@ class Bot:
         ### 响应数据
         * `yes`: 是或否
         '''
-    async def can_send_record(self) -> dict[str, Any]:
+    async def can_send_record(self) -> Dict[str, Any]:
         '''
         ## 检查是否可以发送语音
         ---
@@ -477,16 +479,196 @@ class Bot:
         ### 响应数据
         * `yes`: 是或否
         '''
+    async def get_version_info(self) -> Dict[str, Any]:
+        '''
+        ## 获取版本信息
+        ---
+        ### 参数
+        * `None`
+        ---
+        ### 响应数据
+        * `app_name`: 应用标识
+        * `app_version`: 应用版本
+        * `app_full_name`: 应用完整名称
+        * `protocol_version`: OneBot标准版本
+        * `runtime_version`
+        * `runtime_os`
+        * `version`: 应用版本
+        * `protocol`: 当前登陆使用协议类型
+        '''
+    async def ocr_image(self, *, image: str) -> Dict[str, Any]:
+        '''
+        ## 图片 OCR
+        ---
+        ### 参数
+        * `image`: 图片ID
+        ---
+        ### 响应数据
+        * `texts`: OCR结果
+        * `language`: 语言
+        '''
+    async def upload_private_file(self, *, user_id: int, file: str, name: str) -> None:
+        '''
+        ## 上传私聊文件
+        ---
+        ### 参数
+        * `user_id`: 对方 QQ 号
+        * `file`: 本地文件路径
+        * `name`: 文件名称
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def upload_group_file(self, *, user_id: int, file: str, name: str, folder: str = ...) -> None:
+        '''
+        ## 上传群文件
+        ---
+        ### 参数
+        * `user_id`: 对方 QQ 号
+        * `file`: 本地文件路径
+        * `name`: 文件名称
+        * `folder`:	父目录ID
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def get_group_file_system_info(self, *, group_id: int) -> Dict[str, Any]:
+        '''
+        ## 获取群文件系统信息
+        ---
+        ### 参数
+        * `group_id`: 群号
+        ---
+        ### 响应数据
+        * `file_count`: 文件总数
+        * `limit_count`: 文件上限
+        * `used_space`: 已使用空间
+        * `total_space`: 空间上限
+        '''
+    async def get_group_root_files(self, *, group_id: int) -> Dict[str, Any]:
+        '''
+        ## 获取群根目录文件列表
+        ---
+        ### 参数
+        * `group_id`: 群号
+        ---
+        ### 响应数据
+        * `files`: 文件列表
+        * `folders`: 文件夹列表
+        '''
+    async def get_group_files_by_folder(self, *, group_id: int, folder_id: str) -> Dict[str, Any]:
+        '''
+        ## 获取群子目录文件列表
+        ---
+        ### 参数
+        * `group_id`: 群号
+        * `folder_id`: 文件夹ID
+        ---
+        ### 响应数据
+        * `files`: 文件列表
+        * `folders`: 文件夹列表
+        '''
+    async def create_group_file_folder(self, *, group_id: int, name: str, parent_id: str) -> None:
+        '''
+        ## 创建群文件文件夹
+        ---
+        ### 参数
+        * `group_id`: 群号
+        * `name`: 文件夹名称
+        * `parent_id`: 仅能为`/`
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def delete_group_folder(self, *, group_id: int, folder_id: str) -> None:
+        '''
+        ## 删除群文件文件夹
+        ---
+        ### 参数
+        * `group_id`: 群号
+        * `folder_id`: 文件夹ID
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def delete_group_file(self, *, group_id: int, file_id: str, busid: int) -> None:
+        '''
+        ## 删除群文件
+        ---
+        ### 参数
+        * `group_id`: 群号
+        * `file_id`: 文件ID
+        * `busid`: 文件类型
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def get_group_file_url(self, *, group_id: int, file_id: str, busid: int) -> None:
+        '''
+        ## 获取群文件资源链接
+        ---
+        ### 参数
+        * `group_id`: 群号
+        * `file_id`: 文件ID
+        * `busid`: 文件类型
+        ---
+        ### 响应数据
+        * `url`: 文件下载链接
+        '''
+    async def _send_group_notice(self, *, group_id: int, content: str, image: str) -> None:
+        '''
+        ## 发送群公告
+        ---
+        ### 参数
+        * `group_id`: 群号
+        * `content`: 公告内容
+        * `image`: 图片路径(可选)
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def reload_event_filter(self, *, file: str) -> None:
+        '''
+        ## 重载事件过滤器
+        ---
+        ### 参数
+        * `file`: 事件过滤器文件
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def delete_unidirectional_friend(self, *, user_id: int) -> None:
+        '''
+        ## 删除单向好友
+        ---
+        ### 参数
+        * `user_id`: 单向好友QQ号
+        ---
+        ### 响应数据
+        * `None`
+        '''
+    async def send_private_forward_msg(self, *, user_id: int, messages: Message) -> None:
+        '''
+        ## 发送合并转发(好友)
+        ---
+        ### 参数
+        `user_id`: 好友QQ号
+        `messages`: 自定义转发消息, 具体看 [#CQcode](https://docs.go-cqhttp.org/cqcode/#%E5%90%88%E5%B9%B6%E8%BD%AC%E5%8F%91%E6%B6%88%E6%81%AF%E8%8A%82%E7%82%B9)
+        ---
+        ### 响应数据
+        * `message_id`: 消息 ID
+        * `forward_id`: 转发消息 ID
+        '''
 
-
+        
 class Server:
     bot: Bot
     websocket: WebSocket
 
-    _on_bot_connect: list[Executor]
-    _on_bot_disconnect: list[Executor]
+    _on_bot_connect: List[Executor]
+    _on_bot_disconnect: List[Executor]
 
-    _api_result: dict[str, asyncio.Future]
+    _api_result: Dict[str, asyncio.Future]
 
     def __init__(self, bot):...
     def set_websocket(self, path):...

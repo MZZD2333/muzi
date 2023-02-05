@@ -31,7 +31,6 @@ class Executor:
             pass
         except Exception as e:
             raise ExecuteError(str(e))
-        
 
     @classmethod
     def new(cls, func: Callable, pre_excute: Iterable[Callable]=[]):

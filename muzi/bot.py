@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from functools import partial
 from typing import Any, Callable, Coroutine
@@ -11,20 +12,17 @@ from .event import Event, get_event, log_event
 from .exception import ConnectionFailed, ExecuteError, PreExecuteError
 from .log import logger
 from .plugin import Executor, Plugin
-
-try:
-    import ujson as json
-except:
-    import json
+from .message import JSONEncoder
 
 ApiCall = partial[Coroutine[Any, Any, Any]]
 
 class BotSettings(BaseSettings):
     host: str = '127.0.0.1'
     port: int = 5700
-    ws_path: str = ''
+    ws_path: str = '/ws'
     superusers: set[int] = set()
     api_timeout: float = 15.0
+    
 
 class Bot:
     qid: int
@@ -122,7 +120,7 @@ class Server:
 
     async def call_api(self, api, **data):
         echo = str(time.time())
-        json_data = json.dumps({'action': api, 'params': data, 'echo': echo})
+        json_data = json.dumps({'action': api, 'params': data, 'echo': echo}, cls=JSONEncoder)
         await self._send(json_data)
         try:
             return await self._fetch_api_result(echo)

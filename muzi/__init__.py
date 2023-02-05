@@ -19,6 +19,18 @@ from .typing import Trigger_Data
 
 
 def init(**kwargs):
+    '''
+    ## 初始化bot
+    ---
+    参数
+    `host`: str 默认 '127.0.0.1'
+    `port`: int 默认 5700
+    `ws_path`: str 默认 '/ws'
+    `superusers`: set[int] 默认 set()
+    `api_timeout`: float 默认 15.0
+    '''
+    
+
     global _current_bot
     setting = BotSettings(**kwargs)
     bot = Bot(setting)

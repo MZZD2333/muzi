@@ -272,6 +272,8 @@ def log_event(event: Event):
         elif target_id := event_data.get('target_id', ''):
             log += f'<r>[TID:{target_id}]</r>'
         log += f' {event.notice_type}'
+        if sub_type := event.dict().get('sub_type', ''):
+            log += f'.{sub_type}'
     elif isinstance(event, RequestEvent):
         log = '<m>Request</m> '
     else:

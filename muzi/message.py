@@ -1,10 +1,12 @@
 import re
 from base64 import b64encode
 from io import BytesIO
+from json import JSONEncoder as BaseJSONEncoder
 from pathlib import Path
+from typing import Union
 
 from .utils import bool2str, escape
-from typing import Union
+
 
 class Text:
 
@@ -184,3 +186,11 @@ class Message:
     @property
     def message(self):
         return [d.message for d in self.data]
+
+class JSONEncoder(BaseJSONEncoder):
+    def default(self, o):
+        if isinstance(o, Message):
+            return o.message
+        elif isinstance(o, CQcode):
+            return Message(o).message
+        return super().default(o)

@@ -13,30 +13,22 @@ class PluginMetadata:
     version: str
     usage_text: str
     usage_image_path: str
-    status_tracing: Callable|None
+    status_tracing: Callable[..., dict]|None
     type: int
     hide: bool
 
     @property
+    def status(self):
+        return self.status_tracing() if self.status_tracing else {}
+
+    @property
     def available(self) -> bool:
-        if self.status_tracing:
-            return self.status_tracing().get('available', True)
-        else:
-            return True
+        return self.status.get('available', True)
 
     @property
     def risk(self) -> bool:
-        if self.status_tracing:
-            return self.status_tracing().get('risk', False)
-        else:
-            return False
+        return self.status.get('risk', False)
 
-    @property
-    def status(self):
-        if self.status_tracing:
-            return self.status_tracing()
-        else:
-            return {}
 
 @dataclass(eq=False)
 class Plugin:
@@ -55,9 +47,7 @@ def get_plugin(path: str):
         default_metadata = {'name': path, 'version': '1.0', 'usage_text': 'None', 'usage_image_path': '', 'status_tracing': None, 'type': 0, 'hide': False}
         if custom_metadata := getattr(module, '__metadata__', None):
             default_metadata.update(custom_metadata)
-            metadata = PluginMetadata(**default_metadata)
-        else:
-            metadata = PluginMetadata(**default_metadata)
+        metadata = PluginMetadata(**default_metadata)
         return Plugin(path, triggers, metadata)
 
 def load_plugin(path: str):

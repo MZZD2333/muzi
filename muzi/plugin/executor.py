@@ -2,7 +2,7 @@ import inspect
 from dataclasses import dataclass, field
 from typing import Iterable, Callable
 
-from ..exception import ExecuteError, PreExecuteError, ExecuteDone
+from ..exception import ExecuteDone
 
 
 @dataclass(eq=False, frozen=True)
@@ -12,25 +12,17 @@ class Executor:
     params_annotation: Iterable = field(default_factory=tuple)
 
     async def __call__(self, *args):
-        try:
-            for pre in self.pre_excute:
-                if inspect.iscoroutinefunction(pre):
-                    await pre(*(self.get_params(pre, args)))
-                else:
-                    pre(*(self.get_params(pre, args)))
-        except Exception as e:
-            raise PreExecuteError(str(e))
-
-        try:
-            if inspect.iscoroutinefunction(self.func):
-                result = await self.func(*(self.get_params(self.func, args)))
+        for pre in self.pre_excute:
+            if inspect.iscoroutinefunction(pre):
+                await pre(*(self.get_params(pre, args)))
             else:
-                result = self.func(*(self.get_params(self.func, args)))
-            return result
-        except ExecuteDone:
-            pass
-        except Exception as e:
-            raise ExecuteError(str(e))
+                pre(*(self.get_params(pre, args)))
+
+        if inspect.iscoroutinefunction(self.func):
+            result = await self.func(*(self.get_params(self.func, args)))
+        else:
+            result = self.func(*(self.get_params(self.func, args)))
+        return result
 
     @classmethod
     def new(cls, func: Callable, pre_excute: Iterable[Callable]=[]):

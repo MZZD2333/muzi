@@ -42,3 +42,7 @@ def init(**kwargs):
 def get_bot():
     global _current_bot
     return _current_bot.get()
+
+def run():
+    global _current_bot
+    _current_bot.get().run()

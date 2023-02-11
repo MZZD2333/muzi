@@ -1,6 +1,5 @@
 from typing import Callable, Coroutine, Any
 from .executor import Executor
-from ..exception import ExecuteError
 import asyncio
 
 
@@ -16,7 +15,7 @@ class Condition:
     async def __call__(self, *args):
         try:
             result = all(await asyncio.gather(*(exc(*args) for exc in self.checkers)))
-        except ExecuteError:
+        except Exception:
             result = False
         return result
     

@@ -52,7 +52,6 @@ class MessageEvent(Event):
     sender: Sender
     user_id: int
 
-    
     @validator('message', pre=True)
     def msg(cls, str_):
         return Message(str_)

@@ -9,10 +9,11 @@ from fastapi import FastAPI, WebSocket
 from pydantic import BaseSettings
 
 from .event import Event, get_event, log_event
-from .exception import ConnectionFailed, ExecuteError, PreExecuteError
+from .exception import ConnectionFailed, ExecuteDone, ActionFailed
 from .log import logger
-from .plugin import Executor, Plugin
 from .message import JSONEncoder
+from .plugin import Executor, Plugin
+from .utils import get_exception_local
 
 ApiCall = partial[Coroutine[Any, Any, Any]]
 
@@ -56,8 +57,11 @@ class Bot:
                     logger.info(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] will be executed.')
                     try:
                         await trigger.execute_functions()
-                    except (PreExecuteError, ExecuteError) as e:
-                        logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] <r>catch an exception.</r> {e.info}')
+                    except ExecuteDone:
+                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
+                    except Exception as e:
+                        local = '\n'.join(get_exception_local(e))
+                        logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] <r>catch an exception.</r>\n{local}\n<r>{e}</r>')
                     else:
                         logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
 
@@ -107,7 +111,7 @@ class Server:
 
             try:
                 while True:
-                    data: dict = await websocket.receive_json()
+                    data = await websocket.receive_json()
                     if 'post_type' in data:
                         if event := get_event(data):
                             asyncio.create_task(self.bot.handle_event(event))
@@ -119,7 +123,7 @@ class Server:
         self._server_app.add_api_websocket_route(path, handle_ws)
 
     async def call_api(self, api, **data):
-        echo = str(time.time())
+        echo = str(time.time()) 
         json_data = json.dumps({'action': api, 'params': data, 'echo': echo}, cls=JSONEncoder)
         await self._send(json_data)
         try:
@@ -137,10 +141,8 @@ class Server:
         self._api_result[echo] = future
         try:
             data = await asyncio.wait_for(future, timeout=self.bot.setting.api_timeout)
-            if not isinstance(data, dict):
-                pass
-            elif data['status'] == 'failed':
-                pass
+            if data['status'] == 'failed':
+                raise ActionFailed(data)
             return data
         finally:
             del self._api_result[echo]

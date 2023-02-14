@@ -1,4 +1,6 @@
 from types import TracebackType
+
+
 def bool2str(v):
     return None if v is None else str(v).lower()
 

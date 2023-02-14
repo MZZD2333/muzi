@@ -269,7 +269,7 @@ def log_event(event: Event):
         if operator_id := event_data.get('operator_id', ''):
             log += f'<r>[OID:{operator_id}]</r>'
         elif target_id := event_data.get('target_id', ''):
-            log += f'<r>[TID:{target_id}]</r>'
+            log += f'<m>[TID:{target_id}]</m>'
         log += f' {event.notice_type}'
         if sub_type := event.dict().get('sub_type', ''):
             log += f'.{sub_type}'

@@ -54,16 +54,16 @@ class Bot:
         for plugin in self.plugins:
             for trigger in plugin.triggers:
                 if await trigger._check(event):
-                    logger.info(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] will be executed.')
+                    logger.info(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] will be executed.')
                     try:
                         await trigger.execute_functions()
                     except ExecuteDone:
-                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
+                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] execute complete.')
                     except Exception as e:
                         local = '\n'.join(get_exception_local(e))
-                        logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] <r>catch an exception.</r>\n{local}\n<r>{e}</r>')
+                        logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] <r>catch an exception.</r>\n{local}\n<r>{e}</r>')
                     else:
-                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger.__instance_name__}</g>] execute complete.')
+                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] execute complete.')
 
 
     def on_startup(self, func: Callable):

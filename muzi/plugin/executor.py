@@ -2,9 +2,6 @@ import inspect
 from dataclasses import dataclass, field
 from typing import Iterable, Callable
 
-from ..exception import ExecuteDone
-
-
 @dataclass(eq=False, frozen=True)
 class Executor:
     func: Callable
@@ -25,7 +22,8 @@ class Executor:
         return result
 
     @classmethod
-    def new(cls, func: Callable, pre_excute: Iterable[Callable]=[]):
+    def new(cls, func: Callable, pre_excute: Iterable[Callable]|None=None):
+        pre_excute = list() if pre_excute is None else pre_excute
         params_annotation = tuple(cls.get_annotations(func))
         return cls(func, pre_excute, params_annotation)
     

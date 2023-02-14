@@ -17,7 +17,7 @@ current_result: ContextVar[dict] = ContextVar('current_result')
 
 class Trigger:
 
-    __slots__ = ('detector', 'event', 'condition', 'priority', 'executors', '__instance_name__')
+    __slots__ = ('detector', 'event', 'condition', 'priority', 'executors', '_instance_name')
 
     def __init__(self, detector, event: Type[Event] = Event, condition: Condition|None = None, priority: int = 1):
         self.detector = detector
@@ -25,7 +25,7 @@ class Trigger:
         self.condition: Condition = condition or Condition()
         self.priority: int = priority
         self.executors: list[Executor]  = []
-        self.__instance_name__: str = ''
+        self._instance_name: str = ''
 
     def excute(self, pre_excute: Iterable[Callable] = []):
         def wrap(func):
@@ -55,7 +55,10 @@ class Trigger:
         result = current_result.get()
         for executor in self.executors:
             if executor.validate(self, bot, event, result):
-                await executor(self, bot, event, result)
+                try:
+                    await executor(self, bot, event, result)
+                except ExecuteDone:
+                    break
 
     @classmethod
     def _new(cls, detector, event: Type[Event] = Event, condition: Condition|None = None, priority: int = 1):
@@ -115,6 +118,5 @@ __all__ = [
     'on_event',
     'on_regex',
     'current_bot',
-    'current_event',
     
 ]

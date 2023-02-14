@@ -1,9 +1,9 @@
-from typing import Callable, Coroutine, Any
+from typing import Callable
 from .executor import Executor
 import asyncio
 
 
-Checker = Callable
+Checker = Callable[..., bool]
 
 class Condition:
 

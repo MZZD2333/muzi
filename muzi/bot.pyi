@@ -344,7 +344,7 @@ class Bot:
         * `nickname`: 昵称
         * `source`: 来源
         '''
-    async def delete_friend(Self, *, user_id: int) -> None:
+    async def delete_friend(self, *, user_id: int) -> None:
         '''
         ## 获取单向好友列表
         ---

@@ -29,8 +29,6 @@ def init(**kwargs):
     `superusers`: set[int] 默认 set()
     `api_timeout`: float 默认 15.0
     '''
-    
-
     global _current_bot
     setting = BotSettings(**kwargs)
     bot = Bot(setting)
@@ -40,9 +38,15 @@ def init(**kwargs):
 
 
 def get_bot():
+    '''
+    ## 获取当前bot
+    '''
     global _current_bot
     return _current_bot.get()
 
 def run():
+    '''
+    ## 启动当前bot
+    '''
     global _current_bot
     _current_bot.get().run()

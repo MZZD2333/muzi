@@ -1,5 +1,7 @@
 import asyncio
+import atexit
 import json
+import sys
 import time
 from functools import partial
 from typing import Any, Callable, Coroutine
@@ -9,7 +11,7 @@ from fastapi import FastAPI, WebSocket
 from pydantic import BaseSettings
 
 from .event import Event, get_event, log_event
-from .exception import ConnectionFailed, ExecuteDone, ActionFailed
+from .exception import ActionFailed, ConnectionFailed, ExecuteDone
 from .log import logger
 from .message import JSONEncoder
 from .plugin import Executor, Plugin
@@ -31,6 +33,8 @@ class Bot:
     plugins_path: list[str] = []
     plugins: list[Plugin] = []
 
+    _connected: bool = False
+
     def __init__(self, setting: BotSettings) -> None:
         self.setting = setting
         self.server = Server(self)
@@ -47,7 +51,9 @@ class Bot:
     def run(self):
         uvicorn.run(self.server.asgi, host=self.setting.host, port=self.setting.port)
 
-    def reload(self):...
+    def reboot(self):
+        self._connected = False
+        logger.warning(f'<y>Bot is rebooting now.</y>')
 
     async def handle_event(self, event: Event):
         log_event(event)
@@ -104,20 +110,27 @@ class Server:
             self.websocket = websocket
             if qid := websocket.headers.get('x-self-id', None):
                 self.bot.qid = int(qid)
+                self.bot._connected = True
             else:
                 raise ConnectionFailed
 
             await self.on_bot_connect()
 
             try:
-                while True:
+                while self.bot._connected:
                     data = await websocket.receive_json()
                     if 'post_type' in data:
                         if event := get_event(data):
                             asyncio.create_task(self.bot.handle_event(event))
                     else:
                         self._store_api_result(data)
+                else:
+                    await self.websocket.close()
+                    atexit.register(self.bot.run)
+                    sys.exit(1)
             except:
+                await self.on_bot_disconnect()
+            finally:
                 await self.on_bot_disconnect()
                 
         self._server_app.add_api_websocket_route(path, handle_ws)

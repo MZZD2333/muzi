@@ -10,7 +10,7 @@ import uvicorn
 from fastapi import FastAPI, WebSocket
 from pydantic import BaseSettings
 
-from .event import Event, get_event, log_event
+from .event import Event, HeartbeatMetaEvent, MetaEvent, get_event, log_event
 from .exception import ActionFailed, ConnectionFailed, ExecuteDone
 from .log import logger
 from .message import JSONEncoder
@@ -25,52 +25,33 @@ class BotSettings(BaseSettings):
     ws_path: str = '/ws'
     superusers: set[int] = set()
     api_timeout: float = 15.0
-    
+    auto_reconnect: bool = False
+    default_receive_timeout = 120
 
 class Bot:
     qid: int
     superusers: set[int]
-    plugins_path: list[str] = []
+    auto_reconnect: bool
+
     plugins: list[Plugin] = []
 
-    _connected: bool = False
+    connected: bool = False
+
+    _reboot: bool = False
 
     def __init__(self, setting: BotSettings) -> None:
         self.setting = setting
+        self.superusers = setting.superusers
+        self.auto_reconnect = setting.auto_reconnect
+
         self.server = Server(self)
         self.server.set_websocket(setting.ws_path)
     
-        self.superusers = setting.superusers
-
     def __getattr__(self, name: str) -> ApiCall:
         return partial(self.call_api, name)
 
     async def call_api(self, api: str, **data):
         return await self.server.call_api(api, **data)
-
-    def run(self):
-        uvicorn.run(self.server.asgi, host=self.setting.host, port=self.setting.port)
-
-    def reboot(self):
-        self._connected = False
-        logger.warning(f'<y>Bot is rebooting now.</y>')
-
-    async def handle_event(self, event: Event):
-        log_event(event)
-        for plugin in self.plugins:
-            for trigger in plugin.triggers:
-                if await trigger._check(event):
-                    logger.info(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] will be executed.')
-                    try:
-                        await trigger.execute_functions()
-                    except ExecuteDone:
-                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] execute complete.')
-                    except Exception as e:
-                        local = '\n'.join(get_exception_local(e))
-                        logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] <r>catch an exception.</r>\n{local}\n<r>{e}</r>')
-                    else:
-                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] execute complete.')
-
 
     def on_startup(self, func: Callable):
         self.server._server_app.on_event('startup')(func)
@@ -90,12 +71,64 @@ class Bot:
         self.server._on_bot_disconnect.append(excutor)
         return func
 
+    def on_connect_temp(self, func: Callable):
+        excutor = Executor.new(func)
+        self.server._on_bot_connect_temp.append(excutor)
+        return func
+
+    def on_disconnect_temp(self, func: Callable):
+        excutor = Executor.new(func)
+        self.server._on_bot_disconnect_temp.append(excutor)
+        return func
+
+    def run(self):
+        uvicorn.run(self.server.asgi, host=self.setting.host, port=self.setting.port)
+
+    def reboot(self):
+        self.connected = False
+        self._reboot = True
+        logger.warning(f'<y>Bot is rebooting now.</y>')
+
+    async def handle_event(self, event: Event):
+        if isinstance(event, MetaEvent):
+            if isinstance(event, HeartbeatMetaEvent):
+                if not event.status.online:
+                    self._connected = False
+                    return
+        else:
+            log_event(event)
+            for plugin in self.plugins:
+                if not plugin.enable:
+                    continue
+                for trigger in plugin.triggers:
+                    if not await trigger._check(event):
+                        continue
+                    logger.info(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] will be executed.')
+                    try:
+                        await trigger.execute_functions()
+                    except ExecuteDone:
+                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] execute complete.')
+                    except Exception as e:
+                        local = '\n'.join(get_exception_local(e))
+                        logger.error(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] <r>catch an exception.</r>\n{local}\n<r>{e}</r>')
+                    else:
+                        logger.success(f'<y>Trigger</y> [<m>{plugin.module_path}</m>.<g>{trigger._instance_name}</g>] execute complete.')
+                    if trigger.block:
+                        break
+                else:
+                    continue
+                break
+
+
 class Server:
     bot: Bot
     websocket: WebSocket
 
     _on_bot_connect: list[Executor] = []
     _on_bot_disconnect: list[Executor] = []
+
+    _on_bot_connect_temp: list[Executor] = []
+    _on_bot_disconnect_temp: list[Executor] = []
 
     _api_result: dict[str, asyncio.Future] = {}
 
@@ -110,29 +143,31 @@ class Server:
             self.websocket = websocket
             if qid := websocket.headers.get('x-self-id', None):
                 self.bot.qid = int(qid)
-                self.bot._connected = True
+                self.bot.connected = True
             else:
                 raise ConnectionFailed
 
             await self.on_bot_connect()
+            await self.on_bot_connect_temp()
 
             try:
-                while self.bot._connected:
+                while self.bot.connected:
                     data = await websocket.receive_json()
                     if 'post_type' in data:
                         if event := get_event(data):
                             asyncio.create_task(self.bot.handle_event(event))
                     else:
                         self._store_api_result(data)
-                else:
-                    await self.websocket.close()
+                if self.bot._reboot:
+                    self.bot._reboot = False
                     atexit.register(self.bot.run)
-                    sys.exit(1)
+                await self.websocket.close()
+                await self.on_bot_disconnect()
+                await self.on_bot_disconnect_temp()
+                sys.exit()
             except:
-                await self.on_bot_disconnect()
-            finally:
-                await self.on_bot_disconnect()
-                
+                pass
+
         self._server_app.add_api_websocket_route(path, handle_ws)
 
     async def call_api(self, api, **data):
@@ -146,8 +181,8 @@ class Server:
 
     def _store_api_result(self, data):
         echo = data.get('echo')
-        feture = self._api_result[echo]
-        feture.set_result(data)
+        if feture := self._api_result.get(echo, None):
+            feture.set_result(data)
 
     async def _fetch_api_result(self, echo):
         future = asyncio.get_event_loop().create_future()
@@ -156,7 +191,7 @@ class Server:
             data = await asyncio.wait_for(future, timeout=self.bot.setting.api_timeout)
             if data['status'] == 'failed':
                 raise ActionFailed(data)
-            return data
+            return data.get('data', dict())
         finally:
             del self._api_result[echo]
 
@@ -170,6 +205,16 @@ class Server:
     async def on_bot_disconnect(self):
         for exc in self._on_bot_disconnect:
             await exc()
+
+    async def on_bot_connect_temp(self):
+        for exc in self._on_bot_connect_temp:
+            await exc(self.bot)
+        self._on_bot_connect_temp.clear()
+
+    async def on_bot_disconnect_temp(self):
+        for exc in self._on_bot_disconnect_temp:
+            await exc()
+        self._on_bot_disconnect_temp.clear()
 
     @property
     def asgi(self):

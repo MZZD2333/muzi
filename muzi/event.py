@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Type
 
 from pydantic import BaseModel, validator
 
@@ -8,7 +8,7 @@ from .message import Message
 
 class Sender(BaseModel):
     '''发送者'''
-    user_id: Optional[int] = None
+    user_id: int
     nickname: Optional[str] = None
     sex: Optional[str] = None
     age: Optional[int] = None
@@ -213,7 +213,7 @@ def _get_all_subclass(obj):
     else:
         return [obj]
 
-def _named_event(event: Event):
+def _named_event(event: Type[Event]):
     name = ''
     sub_type = ''
     if _field := event.__fields__.get('sub_type', None):
@@ -244,7 +244,7 @@ def _check_to_me(event: MessageEvent):
 def get_event(json_data: dict) -> Event | None:
     if model := _get_event_model(json_data):
         event = model.parse_obj(json_data)
-        if event.post_type == 'message':
+        if isinstance(event, MessageEvent):
             _check_to_me(event)
         return event
     else:

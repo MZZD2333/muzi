@@ -22,7 +22,7 @@ class Executor:
         return result
 
     @classmethod
-    def new(cls, func: Callable, pre_excute: Iterable[Callable]|None=None):
+    def new(cls, func: Callable, pre_excute: Iterable[Callable]|None = None):
         pre_excute = list() if pre_excute is None else pre_excute
         params_annotation = tuple(cls.get_annotations(func))
         return cls(func, pre_excute, params_annotation)

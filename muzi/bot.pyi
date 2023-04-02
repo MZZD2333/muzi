@@ -30,11 +30,31 @@ class Bot:
     def run(self):...
     def reboot(self):...
     async def handle_event(self, event: Event):...
-    def on_startup(self, func: Callable) -> Callable:...
-    def on_shutdown(self, func: Callable) -> Callable:...
-    def on_connect(self, func: Callable) -> Callable:...
-    def on_disconnect(self, func: Callable) -> Callable:...
 
+    def on_startup(self, func: Callable) -> Callable:
+        '''
+        * 创建一个在`服务启动`时执行的函数
+        '''
+    def on_shutdown(self, func: Callable) -> Callable:
+        '''
+        * 创建一个在`服务关闭`时执行的函数
+        '''
+    def on_connect(self, func: Callable) -> Callable:
+        '''
+        * 创建一个在`bot连接成功`时执行的函数
+        '''
+    def on_disconnect(self, func: Callable) -> Callable:
+        '''
+        * 创建一个在`bot连接断开`时执行的函数
+        '''
+    def on_connect_temp(self, func: Callable) -> Callable:
+        '''
+        * 创建一个在`bot连接成功`时执行的临时函数
+        '''
+    def on_disconnect_temp(self, func: Callable) -> Callable:
+        '''
+        * 创建一个在`bot连接断开`时执行的临时函数
+        '''
     async def send_private_msg(self, *, user_id: int, message: str | Message, auto_escape: bool = ...) -> Dict[str, Any]:
         '''
         ## 发送私聊消息
@@ -71,7 +91,7 @@ class Bot:
         * `message_id`: 消息 ID
         * `forward_id`: 转发消息 ID
         '''
-    async def send_msg(self, *, message_type: str = ..., user_id: int = ..., group_id: int = ..., message: str | Message, auto_escape: bool = ...) -> Dict[str, Any]:
+    async def send(self, *, message_type: str = ..., user_id: int = ..., group_id: int = ..., message: str | Message, auto_escape: bool = ...) -> Dict[str, Any]:
         '''
         ## 发送消息
         ---

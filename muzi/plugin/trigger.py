@@ -1,3 +1,4 @@
+import asyncio
 import re
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Callable, Iterable, NoReturn, Type
@@ -5,8 +6,8 @@ from typing import TYPE_CHECKING, Callable, Iterable, NoReturn, Type
 from ..event import Event, MessageEvent
 from ..exception import ExecuteDone
 from ..message import CQcode, Message
-from .executor import Executor
 from .condition import Condition
+from .executor import Executor
 
 if TYPE_CHECKING:
     from ..bot import Bot
@@ -17,17 +18,18 @@ current_result: ContextVar[dict] = ContextVar('current_result')
 
 class Trigger:
 
-    __slots__ = ('detector', 'event', 'condition', 'priority', 'executors', '_instance_name')
+    __slots__ = ('detector', 'event', 'condition', 'priority', 'block', 'executors', '_instance_name')
 
-    def __init__(self, detector, event: Type[Event] = Event, condition: Condition|None = None, priority: int = 1):
-        self.detector = detector
+    def __init__(self, detector: Callable[..., bool], event: Type[Event] = Event, condition: Condition|None = None, priority: int = 1, block: bool = False):
+        self.detector = Executor.new(detector)
         self.event: Type[Event] = event
         self.condition: Condition = condition or Condition()
         self.priority: int = priority
         self.executors: list[Executor]  = []
         self._instance_name: str = ''
+        self.block: bool = block
 
-    def excute(self, pre_excute: Iterable[Callable] = []):
+    def excute(self, pre_excute: Iterable[Callable]|None = None):
         def wrap(func):
             self._append_executor(func, pre_excute)
             return func
@@ -43,7 +45,7 @@ class Trigger:
             return
         if not await self.condition(bot, event):
             return
-        if not self.detector(event):
+        if not await self.detector(bot, event):
             return
         current_event.set(event)
         
@@ -61,10 +63,10 @@ class Trigger:
                     break
 
     @classmethod
-    def _new(cls, detector, event: Type[Event] = Event, condition: Condition|None = None, priority: int = 1):
-        return cls(detector, event, condition, priority)
+    def _new(cls, detector: Callable[..., bool], event: Type[Event] = Event, condition: Condition|None = None, priority: int = 1, block: bool = False):
+        return cls(detector, event, condition, priority, block)
 
-    async def send_msg(self, message: Message|str|CQcode, at_sender: bool = False):
+    async def send(self, message: Message|str|CQcode, at_sender: bool = False):
         bot = current_bot.get()
         event = current_event.get()
         event_dict = event.dict()
@@ -77,13 +79,13 @@ class Trigger:
         elif user_id:
             params['user_id'] = user_id
         else:
-            pass
+            return
         message = Message() + message
         if at_sender and group_id and user_id:
             message = CQcode.at(str(user_id)) + message
         params['message'] = message.message
         
-        await bot.send_msg(**params)
+        await bot.send(**params)
 
     async def call_api(self, name, **kwargs):
         bot = current_bot.get()
@@ -92,26 +94,27 @@ class Trigger:
 
     async def done(self, message: Message|str|None = None, at_sender: bool = False) -> NoReturn:
         if message:
-            await self.send_msg(message, at_sender)
+            await self.send(message, at_sender)
 
         raise ExecuteDone
 
 
 
-def on_event(event: Type[Event], condition: Condition|None = None, priority: int = 1):
+
+def on_event(event: Type[Event], condition: Condition|None = None, priority: int = 1, block: bool = False):
     def detector():
-        current_result.set({})
+        current_result.set(dict())
         return True
-    return Trigger._new(detector, event, condition, priority)
+    return Trigger._new(detector, event, condition, priority, block)
 
 
-def on_regex(pattern: str|re.Pattern, flags: re.RegexFlag = re.S, condition: Condition|None = None, priority: int = 1):
+def on_regex(pattern: str|re.Pattern, flags: re.RegexFlag = re.S, condition: Condition|None = None, priority: int = 1, block: bool = False):
     def detector(e: MessageEvent):
-        if match := re.search(pattern, e.raw_message, flags):
-            current_result.set({'matched_groups': match.groups()})
+        if match_ := re.search(pattern, e.raw_message, flags):
+            current_result.set({'matched_groupdict': match_.groupdict(), 'matched_groups': match_.groups(), 'mateched_text': match_.string})
             return True
         return False
-    return Trigger._new(detector, MessageEvent, condition, priority)
+    return Trigger._new(detector, MessageEvent, condition, priority, block)
 
 __all__ = [
     'Trigger',

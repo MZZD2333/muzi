@@ -46,31 +46,38 @@ class Plugin:
         self.module = importlib.reload(self.module)
         logger.success(f'<g>Plugin</g> [<y>{self.module_path}</y>] reloads successfully!')
 
-    def disable(self, x: bool = True):
-        self.enable = not x
+    def disable(self, v: bool = True):
+        self.enable = not v
 
 
-
-def get_plugin(path: str):
+def get_plugin(path: str, allow_load_plugin_without_trigger: bool = False, hide_plugin_without_trigger: bool = True):
     try:
         module = importlib.import_module(path)
         if instances := inspect.getmembers(module, lambda x: (isinstance(x, Trigger))):
             for name, trigger in instances:
                 trigger._instance_name = name
+            default_metadata = {'name': path.split('.')[-1]}
+            if custom_metadata := getattr(module, '__metadata__', None):
+                default_metadata.update(custom_metadata)
             triggers:list[Trigger] = sorted([t[1] for t in instances], key=lambda t: t.priority)
-            default_metadata = {'name': path}
+            metadata = PluginMetadata(**default_metadata)
+            return Plugin(module, path, triggers, metadata)
+        elif allow_load_plugin_without_trigger:
+            default_metadata = {'name': path.split('.')[-1], 'hide': len(instances)<=hide_plugin_without_trigger, 'enable': len(instances)>0}
             if custom_metadata := getattr(module, '__metadata__', None):
                 default_metadata.update(custom_metadata)
             metadata = PluginMetadata(**default_metadata)
-            return Plugin(module, path, triggers, metadata)
+            return Plugin(module, path, list(), metadata)
         else:
-            logger.warning(f'<g>Plugin</g> [<y>{path}</y>] 0 triggers detected!')
+            logger.warning(f'<g>Plugin</g> [<y>{path}</y>] 0 trigger was detected!')
     except:
         logger.error(f'<g>Plugin</g> [<y>{path}</y>] Initialization failed!')
 
 def load_plugin(path: str):
-    if plugin := get_plugin(path):
-        bot = current_bot.get()
+    bot = current_bot.get()
+    allow_load_plugin_without_trigger = bot.config.extra_config['allow_load_plugin_without_trigger']
+    hide_plugin_without_trigger = bot.config.extra_config['hide_plugin_without_trigger']
+    if plugin := get_plugin(path, allow_load_plugin_without_trigger, hide_plugin_without_trigger):
         bot.plugins.append(plugin)
         bot.plugins.sort(key=lambda p: p.metadata.name)
         logger.success(f'<g>Plugin</g> [<y>{path}</y>] loads successfully!')

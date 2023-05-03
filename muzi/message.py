@@ -5,29 +5,8 @@ from json import JSONEncoder as BaseJSONEncoder
 from pathlib import Path
 from typing import Union
 
-from .utils import bool2str, escape
+from PIL import Image
 
-
-class Text:
-
-    __slots__ = ('data')
-
-    def __init__(self, data: str = ''):
-        self.data = data
-
-    def __str__(self) -> str:
-        return self.data
-
-    def __repr__(self) -> str:
-        return str(self.message)
-
-    @property
-    def code(self):
-        return self.data
-
-    @property
-    def message(self):
-        return {'type': 'text', 'data': {'text': self.data}}
 
 class CQcode:
 
@@ -35,13 +14,43 @@ class CQcode:
 
     def __init__(self, type: str, data: dict = {}):
         self.type = type
-        self.data = {k: escape(v) for k, v in data.items()}
+        self.data = {k: self._escape(v) for k, v in data.items()}
     
     def __str__(self) -> str:
         return str(self.code)
 
     def __repr__(self) -> str:
         return str(self.message)
+
+    def __add__(self, other: Union[str, 'CQcode', 'Message']):
+        message = Message(self)
+        if isinstance(other, str):
+            message.data.extend(message._construct(other))
+        elif isinstance(other, Message):
+            message.data.extend(other.data)
+        elif isinstance(other, CQcode):
+            message.data.append(other)
+        else:
+            message.data.extend(message._construct(str(other)))
+        return message
+
+    def __radd__(self, other: Union[str, 'CQcode', 'Message']):
+        message = Message(self)
+        if isinstance(other, str):
+            message.data.extend(message._construct(other))
+        elif isinstance(other, Message):
+            message.data.extend(other.data)
+        elif isinstance(other, CQcode):
+            message.data.append(other)
+        else:
+            message.data.extend(message._construct(str(other)))
+        return message
+
+    @staticmethod
+    def _escape(v):
+        if isinstance(v, str):
+            v = v.replace('&', '&amp;').replace(',', '&#44;').replace('[', '&#91;').replace(']', '&#93;')
+        return v
 
     @property
     def code(self):
@@ -54,6 +63,10 @@ class CQcode:
         return {'type': self.type, 'data': self.data}
 
     @staticmethod
+    def text(text: str):
+        return CQcode('text', {'text': text})
+
+    @staticmethod
     def at(qq: str, name: str|None = None):
         if name:
             return CQcode('at', {'qq': qq, 'name': name})
@@ -61,16 +74,18 @@ class CQcode:
 
     @staticmethod
     def face(id: str):
-        return CQcode('face', {'id': str(id)})
+        return CQcode('face', {'id': id})
 
     @staticmethod
-    def image(file: str|Path|bytes):
-        if isinstance(file, BytesIO):
-            file = file.getvalue()
+    def image(file: str|Path|bytes|Image.Image):
         if isinstance(file, bytes):
             file = 'base64://'+b64encode(file).decode()
         elif isinstance(file, Path):
             file = file.resolve().as_uri()
+        elif isinstance(file, Image.Image):
+            io = BytesIO()
+            file.save(io, format='PNG')
+            file = 'base64://'+b64encode(io.getvalue()).decode()
         return CQcode('image', {'file': file})
 
     @staticmethod
@@ -90,8 +105,8 @@ class CQcode:
         elif isinstance(file, Path):
             file = file.resolve().as_uri()
         if url:
-            return CQcode('face', {'file': file, 'magic': bool2str(magic), 'url': url})
-        return CQcode('face', {'file': file, 'magic': bool2str(magic), 'cache': cache, 'proxy': proxy, 'timeout': timeout})
+            return CQcode('record', {'file': file, 'magic': str(magic).lower(), 'url': url})
+        return CQcode('record', {'file': file, 'magic': str(magic).lower(), 'cache': cache, 'proxy': proxy, 'timeout': timeout})
     
     @staticmethod
     def reply(id: str):
@@ -119,13 +134,33 @@ class CQcode:
             return CQcode('video', {'file': file, 'cover': cover, 'c': c})
         return CQcode('video', {'file': file, 'c': c})
 
+    @staticmethod
+    def poke(qq: int):
+        return CQcode('poke', {'qq': qq})
+
+    @staticmethod
+    def cardimage(file: str|Path|bytes|Image.Image, minwidth: int = 400, minheight: int = 400, maxwidth: int = 500, maxheight: int = 1000, source: str = '', icon: str = ''):
+        if isinstance(file, bytes):
+            file = 'base64://'+b64encode(file).decode()
+        elif isinstance(file, Path):
+            file = file.resolve().as_uri()
+        elif isinstance(file, Image.Image):
+            io = BytesIO()
+            file.save(io, format='PNG')
+            file = 'base64://'+b64encode(io.getvalue()).decode()
+        return CQcode('cardimage', {'file': file, 'minwidth': minwidth, 'minheight': minheight, 'maxwidth': maxwidth, 'maxheight': maxheight, 'source': source, 'icon': icon})
+
+    @staticmethod
+    def tts(text: str):
+        return CQcode('tts', {'text': text})
+
 
 class Message:
     
     __slots__ = ('data')
 
     def __init__(self, message: Union[str, CQcode, 'Message', None] = None):
-        self.data: list[CQcode|Text] = []
+        self.data: list[CQcode] = []
         if message is None:
             pass
         elif isinstance(message, Message):
@@ -142,15 +177,15 @@ class Message:
         def _iter_message(message: str):
             seq = 0
             for cqcode in re.finditer(r'\[CQ:(?P<type>\w+),?(?P<data>(?:\w+=[^,\[\]]+,?)*)\]', message):
-                yield 'text', message[seq : cqcode.start()]
-                seq = cqcode.end()
+                if seq < (k := cqcode.start()):
+                    yield 'text', message[seq : k]
                 yield cqcode.group('type'), cqcode.group('data') or ''
-            yield 'text', message[seq:]
-
+                seq = cqcode.end()
+            if seq+1 < len(message):
+                yield 'text', message[seq:]
         for type_, data in _iter_message(message):
             if type_ == 'text':
-                if data:
-                    yield Text(data)
+                yield CQcode(type_, {'text': data})
             else:
                 data = {k: v for k, v in [d.split('=', 1) for d in data.split(',') if d]}
                 yield CQcode(type_, data)

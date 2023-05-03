@@ -2,9 +2,8 @@ from .plugin import Condition
 from .event import *
 from .bot import Bot
 
-
 async def _is_superuser(bot: Bot, event: MessageEvent):
-    return event.user_id in bot.superusers
+    return event.user_id in bot.config.superusers
 
 async def _is_to_me(event: Event):
     return event.to_me

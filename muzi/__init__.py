@@ -1,41 +1,50 @@
-'''
-# muzi bot
----
-### 可在插件内添加 `__metadata__` 字段用于插件管理
-* `name`: 插件名称 默认插件所在模块的路径
-* `usage_text`: 插件文本说明
-* `usage_image_path`: 插件图片说明路径
-* `status_tracing`: 插件状态监测函数
-* `type`: 插件类型 [0: 群聊|私聊][1: 群聊][2: 私聊][3: 非会话]
----
-'''
+import json
 
-from .bot import Bot, BotSettings
+from .bot import Bot, BotConfig
 from .message import CQcode, Message
 from .plugin import Condition, Trigger
 from .plugin import current_bot as _current_bot
 from .plugin import load_plugin, load_plugin_dir, on_event, on_regex
-from .typing import Trigger_Data
 
+DEFAULT_EXTRA_CONFIG = {
+    'allow_load_plugin_without_trigger': False,
+    'hide_plugin_without_trigger': True,
+}
 
-def init(**kwargs):
+DEFAULT_CONFIG = {
+    'host': '127.0.0.1',
+    'port': 5700,
+    'ws_path': '/ws',
+
+    'superusers': list(),
+
+    'api_timeout': 15.0,
+    'auto_reconnect': False,
+
+    'data_path': './data',
+    'config_path': './config.json',
+}
+
+def init(config: dict|str = dict()):
     '''
     ## 初始化bot
-    ---
-    参数
-    `host`: str 默认 '127.0.0.1'
-    `port`: int 默认 5700
-    `ws_path`: str 默认 '/ws'
-    `superusers`: set[int] 默认 set()
-    `api_timeout`: float 默认 15.0
     '''
     global _current_bot
-    setting = BotSettings(**kwargs)
-    bot = Bot(setting)
+    _config = DEFAULT_CONFIG
+    _extra_config = DEFAULT_EXTRA_CONFIG
+    if isinstance(config, str):
+        with open(config, 'r', encoding='UTF-8') as f:
+            config_ = json.load(f)
+    else:
+        config_ = config
+    _extra_config.update(config_.pop('extra_config', {}))
+    _config.update(config_)
+    _config['extra_config'] = _extra_config
+    botconfig = BotConfig(**_config)
+    bot = Bot(botconfig)
     _current_bot.set(bot)
 
     return bot
-
 
 def get_bot():
     '''

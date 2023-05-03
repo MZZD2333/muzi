@@ -29,11 +29,14 @@ class Trigger:
         self._instance_name: str = ''
         self.block: bool = block
 
-    def excute(self, pre_excute: Iterable[Callable]|None = None):
+    def excute(self, func: Callable|None = None, pre_excute: Iterable[Callable]|None = None) -> Callable:
         def wrap(func):
             self._append_executor(func, pre_excute)
             return func
-        return wrap
+        if func is not None:
+            return wrap(func)
+        else:
+            return wrap
 
     def _append_executor(self, func, pre_excute):
         executor = Executor.new(func, pre_excute)
@@ -66,7 +69,8 @@ class Trigger:
     def _new(cls, detector: Callable[..., bool], event: Type[Event] = Event, condition: Condition|None = None, priority: int = 1, block: bool = False):
         return cls(detector, event, condition, priority, block)
 
-    async def send(self, message: Message|str|CQcode, at_sender: bool = False):
+    async def send(self, message: Message|str|CQcode, at_sender: bool = False, recall_after: float = 0):
+        '''发送消息'''
         bot = current_bot.get()
         event = current_event.get()
         event_dict = event.dict()
@@ -80,24 +84,32 @@ class Trigger:
             params['user_id'] = user_id
         else:
             return
-        message = Message() + message
+        message = Message(message)
         if at_sender and group_id and user_id:
             message = CQcode.at(str(user_id)) + message
         params['message'] = message.message
         
-        await bot.send(**params)
+        response = await bot.send_msg(**params)
+        if recall_after > 0:
+            message_id = response['message_id']
+            async def delete():
+                await asyncio.sleep(recall_after)
+                try:
+                    await bot.delete_msg(message_id=message_id)
+                except:
+                    pass
+            asyncio.get_running_loop().create_task(delete(), name=message_id)
+
+    async def done(self, message: Message|str|CQcode|None = None, at_sender: bool = False, recall_after: int = 0) -> NoReturn:
+        '''发送消息，并中止触发器执行后续操作'''
+        if message:
+            await self.send(message, at_sender, recall_after)
+        raise ExecuteDone
 
     async def call_api(self, name, **kwargs):
         bot = current_bot.get()
 
         await bot.call_api(name, **kwargs)     
-
-    async def done(self, message: Message|str|None = None, at_sender: bool = False) -> NoReturn:
-        if message:
-            await self.send(message, at_sender)
-
-        raise ExecuteDone
-
 
 
 

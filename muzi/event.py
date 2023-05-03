@@ -26,6 +26,12 @@ class Status(BaseModel):
     online: bool
     good: bool
 
+class File(BaseModel):
+    '''文件'''
+    name: str
+    size: str
+    url: str
+
 class Event(BaseModel):
     '''基础事件'''
     time: int
@@ -63,10 +69,15 @@ class GroupMessageEvent(MessageEvent):
 
     group_id: int
 
+    @property
+    def at_ids(self):
+        return [p.data['qq'] for p in self.message.data if p.type == 'at']
+
 class PrivateMessageEvent(MessageEvent):
     '''私聊消息事件'''
     message_type: str = 'private'
     sub_type: str
+
 
 # Notice Event
 class NoticeEvent(Event):
@@ -76,44 +87,35 @@ class NoticeEvent(Event):
     
 class GroupUploadNoticeEvent(NoticeEvent):
     '''群文件上传事件'''
-
     notice_type: str = 'group_upload'
     user_id: int
     group_id: int
 
-
 class GroupAdminNoticeEvent(NoticeEvent):
     '''群管理员变动事件'''
-
     notice_type: str = 'group_admin'
     sub_type: str
     user_id: int
     group_id: int
 
-
 class GroupDecreaseNoticeEvent(NoticeEvent):
     '''群成员减少事件'''
-
     notice_type: str = 'group_decrease'
     sub_type: str
     user_id: int
     group_id: int
     operator_id: int
 
-
 class GroupIncreaseNoticeEvent(NoticeEvent):
     '''群成员增加事件'''
-
     notice_type: str = 'group_increase'
     sub_type: str
     user_id: int
     group_id: int
     operator_id: int
 
-
 class GroupBanNoticeEvent(NoticeEvent):
     '''群禁言事件'''
-
     notice_type: str = 'group_ban'
     sub_type: str
     user_id: int
@@ -123,36 +125,52 @@ class GroupBanNoticeEvent(NoticeEvent):
 
 class FriendAddNoticeEvent(NoticeEvent):
     '''好友添加事件'''
-
     notice_type: str = 'friend_add'
     user_id: int
 
-
 class GroupRecallNoticeEvent(NoticeEvent):
     '''群消息撤回事件'''
-
     notice_type: str = 'group_recall'
     user_id: int
     group_id: int
     operator_id: int
     message_id: int
 
-
 class FriendRecallNoticeEvent(NoticeEvent):
     '''好友消息撤回事件'''
-
     notice_type: str = 'friend_recall'
     user_id: int
     message_id: int
 
+class GroupCardUpdataEvent(NoticeEvent):
+    '''群成员名片更新'''
+    notice_type: str = 'group_card'
+    user_id: int
+    group_id: int
+    card_new: str
+    card_old: str
+
+class ReceivedOfflineFileEvent(NoticeEvent):
+    '''接收到离线文件事件'''
+    notice_type: str = 'offline_file'
+    user_id: int
+    file: File
+
+class EssenceEvent(NoticeEvent):
+    '''精华消息变更事件'''
+    notice_type: str = 'essence'
+    sub_type: str
+    group_id: int
+    sender_id: int
+    operator_id: int
+    message_id: int
 
 class NotifyEvent(NoticeEvent):
     '''提醒事件'''
-
     notice_type: str = 'notify'
     sub_type: str
-    user_id: int
-    group_id: int
+    user_id: Optional[int] = None
+    group_id: Optional[int] = None
 
 
 class PokeNotifyEvent(NotifyEvent):
@@ -160,7 +178,6 @@ class PokeNotifyEvent(NotifyEvent):
 
     sub_type: str = 'poke'
     target_id: int
-    group_id: Optional[int] = None
 
 
 class LuckyKingNotifyEvent(NotifyEvent):
@@ -258,7 +275,6 @@ def log_event(event: Event):
         if isinstance(event, GroupMessageEvent):
             log += f'<g>[GID:{event.group_id}]</g>'
         log += f'<c>[UID:{event.user_id}]</c> {event.raw_message}'
-        
     elif isinstance(event, NoticeEvent):
         log = '<y>Notice </y> '
         event_data = event.dict()
